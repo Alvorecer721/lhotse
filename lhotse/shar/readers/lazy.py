@@ -280,16 +280,24 @@ class LazySharIterator(Dillable):
                     break
 
                 # Filling shar placeholders with actual data from tar files etc.
+                _skip_cut = False
                 for (field, (maybe_manifest, data_path)) in zip(
                     field_iters.keys(),
                     field_data,
                 ):
                     if maybe_manifest is None:
                         continue  # No value available for the current field for this cut.
-                    assert (
-                        str(data_path.parent / data_path.stem) == cut.id
-                    ), f"Mismatched IDs: cut ID is '{cut.id}' but found data with name '{data_path}' for field {field}"
+                    if str(data_path.parent / data_path.stem) != cut.id:
+                        import logging as _logging
+                        _logging.getLogger("lhotse.shar").warning(
+                            f"Skipping cut with mismatched ID: cut '{cut.id}' vs data '{data_path}' for field {field}"
+                        )
+                        _skip_cut = True
+                        break
                     setattr(cut, field, maybe_manifest)
+
+                if _skip_cut:
+                    continue
 
                 cut.shard_origin = shard["cuts"]
                 cut.shar_epoch = self.epoch

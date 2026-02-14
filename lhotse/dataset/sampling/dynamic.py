@@ -308,7 +308,10 @@ class DurationBatcher:
             # Check that we have not reached the end of the dataset.
             try:
                 # If this doesn't raise (typical case), it's not the end: keep processing.
-                next_cut_or_tpl = next(self.cuts_iter)
+                if self.reuse_cuts_buffer:
+                    next_cut_or_tpl = self.reuse_cuts_buffer.popleft()
+                else:
+                    next_cut_or_tpl = next(self.cuts_iter)
             except StopIteration:
                 # No more cuts to sample from: if we have a partial batch,
                 # we may output it, unless the user requested to drop it.
@@ -338,7 +341,13 @@ class DurationBatcher:
             # Did we exceed the max_duration and max_cuts constraints?
             if self.constraint.close_to_exceeding():
                 # Yes. Finish sampling this batch.
-                if self.constraint.exceeded() and len(cuts) == 1:
+                if self.constraint.exceeded() and len(cuts) > 1:
+                    # The last cut caused the batch to massively exceed constraints
+                    # (e.g. a long outlier after many short cuts updated longest_seen,
+                    # making num_cuts * longest_seen >> max_duration).
+                    # Remove it so it can be picked up in the next batch.
+                    self.reuse_cuts_buffer.append(cuts.pop())
+                elif self.constraint.exceeded() and len(cuts) == 1:
                     warnings.warn(
                         "We have exceeded the max_duration constraint during sampling but have only 1 cut. "
                         "This is likely because max_duration was set to a very low value ~10s, "

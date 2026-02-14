@@ -624,11 +624,16 @@ class DynamicBucketer:
                 yield batch
                 # Remove sampled cuts from the bucket.
                 if indexes_used:
-                    # Shuffling, sort indexes of yielded elements largest -> smallest and remove them
-                    indexes_used.sort(reverse=True)
+                    # Shuffling: only remove indexes for items actually in the batch.
+                    # DurationBatcher may have consumed one extra item from the
+                    # generator but excluded it from the batch (e.g. because adding
+                    # it caused the constraint to be exceeded).  That item stays in
+                    # the bucket and will be sampled in a future batch.
+                    used = indexes_used[:batch_size]
+                    used.sort(reverse=True)
                     with sampling_bucket.mutex:
                         _q = sampling_bucket.queue
-                        for idx in indexes_used:
+                        for idx in used:
                             del _q[idx]
                 else:
                     # No shuffling, remove first N
