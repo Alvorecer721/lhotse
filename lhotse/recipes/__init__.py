@@ -42,6 +42,7 @@ from .grid import download_grid, prepare_grid
 from .heroico import download_heroico, prepare_heroico
 from .hifitts import download_hifitts, prepare_hifitts
 from .himia import download_himia, prepare_himia
+from .hui_audio_corpus_german import prepare_hui_audio_corpus_german
 from .icmcasr import prepare_icmcasr
 from .icsi import download_icsi, prepare_icsi
 from .iwslt22_ta import prepare_iwslt22_ta
@@ -69,6 +70,7 @@ from .mls import prepare_mls
 from .mobvoihotwords import download_mobvoihotwords, prepare_mobvoihotwords
 from .mtedx import download_mtedx, prepare_mtedx
 from .musan import download_musan, prepare_musan
+from .nb_tale import prepare_nb_tale
 from .nsc import prepare_nsc
 from .oto_speech import download_oto_speech, prepare_oto_speech
 from .peoples_speech import prepare_peoples_speech
@@ -90,6 +92,7 @@ from .tedlium import download_tedlium, prepare_tedlium
 from .tedlium2 import download_tedlium2, prepare_tedlium2
 from .thchs_30 import download_thchs_30, prepare_thchs_30
 from .this_american_life import download_this_american_life, prepare_this_american_life
+from .thorsten_de import prepare_thorsten_de
 from .timit import download_timit, prepare_timit
 from .uwb_atcc import download_uwb_atcc, prepare_uwb_atcc
 from .vctk import download_vctk, prepare_vctk
@@ -203,6 +206,7 @@ __all__ = [
     "prepare_mtedx",
     "download_musan",
     "prepare_musan",
+    "prepare_nb_tale",
     "prepare_nsc",
     "prepare_peoples_speech",
     "download_reazonspeech",
@@ -226,6 +230,7 @@ __all__ = [
     "prepare_this_american_life",
     "download_timit",
     "prepare_timit",
+    "prepare_thorsten_de",
     "download_uwb_atcc",
     "prepare_uwb_atcc",
     "download_vctk",

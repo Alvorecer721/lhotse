@@ -287,7 +287,11 @@ class LazySharIterator(Dillable):
                 ):
                     if maybe_manifest is None:
                         continue  # No value available for the current field for this cut.
-                    if str(data_path.parent / data_path.stem) != cut.id:
+                    # Strip the last extension to recover the cut ID.
+                    # Use rsplit instead of Path ops to preserve URL-like
+                    # IDs (Path normalizes "http://" to "http:/").
+                    data_id = data_path.rsplit(".", 1)[0] if "." in data_path else data_path
+                    if data_id != cut.id:
                         import logging as _logging
                         _logging.getLogger("lhotse.shar").warning(
                             f"Skipping cut with mismatched ID: cut '{cut.id}' vs data '{data_path}' for field {field}"

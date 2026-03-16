@@ -1,4 +1,5 @@
 # Custom
+.claude/
 deps/
 examples/data
 examples/tmp

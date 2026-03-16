@@ -82,7 +82,7 @@ def download_aishell(
 
 
 def prepare_aishell(
-    corpus_dir: Pathlike, output_dir: Optional[Pathlike] = None
+    corpus_dir: Pathlike, output_dir: Optional[Pathlike] = None, **kwargs
 ) -> Dict[str, Dict[str, Union[RecordingSet, SupervisionSet]]]:
     """
     Returns the manifests which consist of the Recordings and Supervisions

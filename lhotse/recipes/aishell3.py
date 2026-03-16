@@ -70,6 +70,7 @@ def download_aishell3(
 def prepare_aishell3(
     corpus_dir: Pathlike,
     output_dir: Optional[Pathlike] = None,
+    **kwargs,
 ) -> Dict[str, Dict[str, Union[RecordingSet, SupervisionSet]]]:
     """
     Returns the manifests which consist of the Recordings and Supervisions.
@@ -169,6 +170,6 @@ def prepare_aishell3(
             )
             recording_set.to_file(output_dir / f"aishell3_recordings_{part}.jsonl.gz")
 
-        manifests[part] = {"recordings": supervision_set, "supervisions": recording_set}
+        manifests[part] = {"recordings": recording_set, "supervisions": supervision_set}
 
     return manifests

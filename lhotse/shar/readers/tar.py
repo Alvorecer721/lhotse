@@ -1,5 +1,4 @@
 import tarfile
-from pathlib import Path
 from typing import Generator, Optional, Tuple, Union
 
 from lhotse import Features, Recording
@@ -39,7 +38,7 @@ class TarIterator:
 
     def __iter__(
         self,
-    ) -> Generator[Tuple[Optional[Manifest], Path], None, None]:
+    ) -> Generator[Tuple[Optional[Manifest], str], None, None]:
         with tarfile.open(fileobj=open_best(self.source, mode="rb"), mode="r|*") as tar:
             for ((data, data_path), (meta, meta_path)) in iterate_tarfile_pairwise(tar):
                 if meta is not None:
@@ -50,7 +49,7 @@ class TarIterator:
 
 def iterate_tarfile_pairwise(
     tar_file: tarfile.TarFile,
-) -> Generator[Tuple[Optional[bytes], Optional[Manifest], Path, Path], None, None]:
+) -> Generator[Tuple[Optional[bytes], Optional[Manifest], str, str], None, None]:
     result = []
     for tarinfo in tar_file:
         if len(result) == 2:
@@ -69,12 +68,12 @@ def iterate_tarfile_pairwise(
 
 def parse_tarinfo(
     tarinfo: tarfile.TarInfo, tar_file: tarfile.TarFile
-) -> Tuple[Optional[bytes], Path]:
+) -> Tuple[Optional[bytes], str]:
     """
     Parse a tarinfo object and return the data it points to as well as the internal path.
     """
-    path = Path(tarinfo.path)
-    if path.suffix == ".nodata" or path.suffix == ".nometa":
-        return None, path
+    raw_path = tarinfo.path
+    if raw_path.endswith(".nodata") or raw_path.endswith(".nometa"):
+        return None, raw_path
     data = tar_file.extractfile(tarinfo).read()
-    return data, path
+    return data, raw_path

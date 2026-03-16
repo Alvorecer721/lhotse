@@ -68,6 +68,7 @@ from .mls import *
 from .mtedx import *
 from .musan import *
 from .must_c import *
+from .nb_tale import *
 from .notsofar1 import *
 from .nsc import *
 from .oto_speech import *
@@ -90,6 +91,7 @@ from .tedlium import *
 from .tedlium2 import *
 from .thchs_30 import *
 from .this_american_life import *
+from .thorsten_de import *
 from .timit import *
 from .uwb_atcc import *
 from .vctk import *

@@ -106,6 +106,7 @@ def prepare_aishell4(
     corpus_dir: Pathlike,
     output_dir: Optional[Pathlike] = None,
     normalize_text: bool = False,
+    **kwargs,
 ) -> Dict[str, Dict[str, Union[RecordingSet, SupervisionSet]]]:
     """
     Returns the manifests which consist of the Recordings and Supervisions
@@ -155,7 +156,7 @@ def prepare_aishell4(
                     global_spk_id[key] = f"SPK{len(global_spk_id)+1:04d}"
                 spk_id = global_spk_id[key]
                 for j, interval in enumerate(tier.intervals):
-                    if interval.mark != "":
+                    if interval.mark and interval.mark.strip():
                         start = interval.minTime
                         end = interval.maxTime
                         text = interval.mark
@@ -164,7 +165,7 @@ def prepare_aishell4(
                             recording_id=idx,
                             start=start,
                             duration=round(end - start, 4),
-                            channel=recording.channel_ids,
+                            channel=0,
                             language="Chinese",
                             speaker=spk_id,
                             text=text_normalize(text.strip())

@@ -76,18 +76,18 @@ def fill_shar_placeholder(
 
     elif isinstance(manifest, (Features, Array)):
         manifest.storage_key = data
-        if tarpath.suffix == ".llc":
+        if tarpath.endswith(".llc"):
             manifest.storage_type = "memory_lilcom"
-        elif tarpath.suffix == ".npy":
+        elif tarpath.endswith(".npy"):
             manifest.storage_type = "memory_npy"
         else:
             raise RuntimeError(f"Unknown array/tensor format: {tarpath}")
 
     elif isinstance(manifest, TemporalArray):
         manifest.array.storage_key = data
-        if tarpath.suffix == ".llc":
+        if tarpath.endswith(".llc"):
             manifest.array.storage_type = "memory_lilcom"
-        elif tarpath.suffix == ".npy":
+        elif tarpath.endswith(".npy"):
             manifest.array.storage_type = "memory_npy"
         else:
             raise RuntimeError(f"Unknown array/tensor format: {tarpath}")
