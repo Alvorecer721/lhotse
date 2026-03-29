@@ -803,16 +803,48 @@ def pick_at_random(
     out_indexes_used: list,
 ) -> Generator[Union[Cut, Tuple[Cut, ...]], None, None]:
     """
-    Generator which will yield items in a sequence in a random order.
-    It will append the indexes of items yielded during iteration via ``out_used_indexes``.
+    Generator which will yield items in a shard-grouped random order.
+
+    Cuts from the same shard are kept contiguous so that downstream batch
+    construction reads from fewer tar files (better IO locality).  The order
+    of shard groups is shuffled, and within each group items are shuffled,
+    preserving overall randomness.
+
+    Falls back to pure random when shard origin is unavailable.
+
+    It will append the indexes of items yielded during iteration via
+    ``out_used_indexes``.
     """
     with bucket.mutex:
-        bucket = list(bucket.queue)
-    indexes = list(range(len(bucket)))
-    rng.shuffle(indexes)
+        items = list(bucket.queue)
+
+    # Shard-grouped shuffle for IO locality: group by shard_origin in a
+    # single pass, fall back to pure random if no shard info is found.
+    from collections import defaultdict
+    shard_groups = defaultdict(list)
+    has_shard_info = False
+    for idx, item in enumerate(items):
+        cut = item[0] if isinstance(item, tuple) else item
+        key = getattr(cut, "shard_origin", "")
+        if key:
+            has_shard_info = True
+        shard_groups[key].append(idx)
+
+    if has_shard_info:
+        group_keys = list(shard_groups.keys())
+        rng.shuffle(group_keys)
+        indexes = []
+        for key in group_keys:
+            group = shard_groups[key]
+            rng.shuffle(group)
+            indexes.extend(group)
+    else:
+        indexes = list(range(len(items)))
+        rng.shuffle(indexes)
+
     for idx in indexes:
         out_indexes_used.append(idx)
-        yield bucket[idx]
+        yield items[idx]
 
 
 class BucketsDontHaveEnoughData(Exception):
