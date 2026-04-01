@@ -537,9 +537,10 @@ class LibsndfileBackend(AudioBackend):
     def handles_special_case(self, path_or_fd: Union[Pathlike, FileObject]) -> bool:
         if (
             isinstance(path_or_fd, BytesIO)
+            and not is_torchcodec_available()
             and not torchaudio_ffmpeg_backend_available()
         ):
-            return True  # prefer this to old torchaudio for file IO
+            return True  # prefer this to old torchaudio for byte streams
         if isinstance(path_or_fd, (Path, str)) and str(path_or_fd).endswith(".opus"):
             return True  # use libnsdfile for OPUS
         return False

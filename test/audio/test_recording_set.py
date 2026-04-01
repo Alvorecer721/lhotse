@@ -16,7 +16,7 @@ from lhotse.audio import DurationMismatchError
 from lhotse.audio.mixer import AudioMixer
 from lhotse.augmentation import ReverbWithImpulseResponse
 from lhotse.testing.dummies import DummyManifest
-from lhotse.utils import INT16MAX, fastcopy, is_module_available
+from lhotse.utils import INT16MAX, fastcopy, is_module_available, is_torchcodec_available
 from lhotse.utils import nullcontext as does_not_raise
 
 
@@ -621,6 +621,19 @@ def test_recording_from_bytes():
         recording_id=recording.id,
     )
     np.testing.assert_equal(memory_recording.load_audio(), recording.load_audio())
+
+
+@pytest.mark.skipif(not is_torchcodec_available(), reason="Requires torchcodec")
+def test_recording_from_bytes_mp3():
+    rec = Recording.from_bytes(
+        data=open("test/fixtures/common_voice_en_651325.mp3", "rb").read(),
+        recording_id="common-voice-mp3",
+    )
+    audio = rec.load_audio()
+    assert rec.sampling_rate > 0
+    assert rec.num_samples > 0
+    assert audio.shape[0] == 1
+    assert audio.shape[1] > 0
 
 
 def test_memory_recording_dict_serialization():
