@@ -1,3 +1,5 @@
+import sys
+import types
 from functools import lru_cache
 from math import isclose
 
@@ -634,6 +636,48 @@ def test_recording_from_bytes_mp3():
     assert rec.num_samples > 0
     assert audio.shape[0] == 1
     assert audio.shape[1] > 0
+
+
+@pytest.mark.skipif(
+    not is_torchcodec_available() or not is_module_available("torchaudio"),
+    reason="Requires torchcodec and torchaudio",
+)
+def test_recording_from_bytes_torchaudio_fallback_for_fileobj(monkeypatch):
+    import lhotse.audio.backend as backend_mod
+    import torch
+    import torchaudio
+    from lhotse.audio.backend import LibsndfileCompatibleAudioInfo
+
+    def failing_decoder(_):
+        raise RuntimeError("torchcodec cannot decode this file-like object")
+
+    expected = torch.arange(0, 160, dtype=torch.float32).reshape(1, 160)
+
+    def fake_info(path_or_fd):
+        return LibsndfileCompatibleAudioInfo(
+            channels=1, frames=160, samplerate=16000, duration=0.01
+        )
+
+    def fake_load(path_or_fd):
+        assert path_or_fd.tell() == 0
+        return expected.clone(), 16000
+
+    fake_torchcodec = types.ModuleType("torchcodec")
+    fake_decs = types.ModuleType("torchcodec.decoders")
+    fake_decs.AudioDecoder = failing_decoder
+    fake_torchcodec.decoders = fake_decs
+    monkeypatch.setitem(sys.modules, "torchcodec", fake_torchcodec)
+    monkeypatch.setitem(sys.modules, "torchcodec.decoders", fake_decs)
+    monkeypatch.setattr(backend_mod, "is_torchcodec_available", lambda: True)
+    monkeypatch.setattr(backend_mod, "torchaudio_info", fake_info)
+    monkeypatch.setattr(torchaudio, "load", fake_load)
+
+    rec = Recording.from_bytes(data=b"not-a-real-ogg", recording_id="bytes-fallback")
+    audio = rec.load_audio()
+
+    assert rec.sampling_rate == 16000
+    assert rec.num_samples == 160
+    np.testing.assert_equal(audio, expected.numpy())
 
 
 def test_memory_recording_dict_serialization():

@@ -1,7 +1,10 @@
+import sys
+import types
 from io import BytesIO
 
 import numpy as np
 import pytest
+import torch
 
 import lhotse
 from lhotse.audio import AudioLoadingError
@@ -13,10 +16,11 @@ from lhotse.audio.backend import (
     TorchcodecBackend,
     check_torchaudio_version_gt,
     torchaudio_ffmpeg_backend_available,
+    torchcodec_load,
     torchaudio_soundfile_supports_format,
 )
 from lhotse.testing.random import deterministic_rng
-from lhotse.utils import INT16MAX, is_torchcodec_available
+from lhotse.utils import INT16MAX, is_torchcodec_available, is_torchaudio_available
 
 
 def test_default_audio_backend():
@@ -202,6 +206,57 @@ def test_audio_info_from_bytes_io(backend):
         assert meta.channels == 1
 
 
+def test_bytesio_special_case_routing_preserves_position(monkeypatch):
+    import lhotse.audio.backend as backend_mod
+
+    monkeypatch.setattr(backend_mod, "_torchcodec_runtime_available", lambda: True)
+
+    wav = BytesIO(b"RIFF\x24\x00\x00\x00WAVEfmt ")
+    wav.seek(5)
+    assert LibsndfileBackend().handles_special_case(wav)
+    assert not TorchcodecBackend().handles_special_case(wav)
+    assert wav.tell() == 5
+
+    ogg = BytesIO(b"OggS\x00\x02\x00\x00\x00\x00\x00\x00")
+    ogg.seek(3)
+    assert TorchcodecBackend().handles_special_case(ogg)
+    assert not LibsndfileBackend().handles_special_case(ogg)
+    assert ogg.tell() == 3
+
+    mp3 = BytesIO(b"ID3\x04\x00\x00\x00\x00\x00\x21")
+    mp3.seek(4)
+    assert TorchcodecBackend().handles_special_case(mp3)
+    assert not LibsndfileBackend().handles_special_case(mp3)
+    assert mp3.tell() == 4
+
+
+def test_composite_info_routes_bytesio_special_cases_without_fallbacks(monkeypatch):
+    import lhotse.audio.backend as backend_mod
+
+    monkeypatch.setattr(backend_mod, "_torchcodec_runtime_available", lambda: True)
+
+    backend = CompositeAudioBackend([LibsndfileBackend(), TorchcodecBackend()])
+    wav_meta = object()
+    ogg_meta = object()
+
+    def fake_libsndfile_info(self, path_or_fd, force_opus_sampling_rate=None):
+        assert path_or_fd.tell() == 0
+        return wav_meta
+
+    def fake_torchcodec_info(self, path_or_fd, force_opus_sampling_rate=None):
+        assert path_or_fd.tell() == 0
+        return ogg_meta
+
+    monkeypatch.setattr(LibsndfileBackend, "info", fake_libsndfile_info)
+    monkeypatch.setattr(TorchcodecBackend, "info", fake_torchcodec_info)
+
+    wav = BytesIO(b"RIFF\x24\x00\x00\x00WAVEfmt ")
+    ogg = BytesIO(b"OggS\x00\x02\x00\x00\x00\x00\x00\x00")
+
+    assert backend.info(wav) is wav_meta
+    assert backend.info(ogg) is ogg_meta
+
+
 @pytest.mark.skipif(not is_torchcodec_available(), reason="Requires torchcodec")
 @pytest.mark.parametrize(
     "path",
@@ -267,3 +322,33 @@ def test_torchcodec_save_and_load(tmp_path, format):
 def test_torchcodec_audio_backend_contextmanager():
     with lhotse.audio_backend("TorchcodecBackend") as b:
         assert isinstance(b, TorchcodecBackend)
+
+
+@pytest.mark.skipif(
+    not is_torchcodec_available() or not is_torchaudio_available(),
+    reason="Requires torchcodec and torchaudio",
+)
+def test_torchcodec_load_falls_back_to_torchaudio_for_fileobj(monkeypatch):
+    import torchaudio
+
+    def failing_decoder(_):
+        raise RuntimeError("torchcodec cannot decode this file-like object")
+
+    expected = torch.arange(0, 320, dtype=torch.float32).reshape(2, 160)
+
+    def fake_load(path_or_fd):
+        assert path_or_fd.tell() == 0
+        return expected.clone(), 16000
+
+    fake_torchcodec = types.ModuleType("torchcodec")
+    fake_decs = types.ModuleType("torchcodec.decoders")
+    fake_decs.AudioDecoder = failing_decoder
+    fake_torchcodec.decoders = fake_decs
+    monkeypatch.setitem(sys.modules, "torchcodec", fake_torchcodec)
+    monkeypatch.setitem(sys.modules, "torchcodec.decoders", fake_decs)
+    monkeypatch.setattr(torchaudio, "load", fake_load)
+
+    audio, sr = torchcodec_load(BytesIO(b"not-a-real-ogg"), offset=0.002, duration=0.004)
+
+    assert sr == 16000
+    np.testing.assert_equal(audio, expected.numpy()[:, 32:96])

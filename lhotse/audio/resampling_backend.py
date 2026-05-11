@@ -3,7 +3,7 @@ import os
 import typing
 from typing import List, Literal, Optional, Union
 
-ResamplingBackend = Literal["default", "sox"]
+ResamplingBackend = Literal["default", "sox", "soxr"]
 CURRENT_RESAMPLING_BACKEND: Optional[ResamplingBackend] = None
 
 

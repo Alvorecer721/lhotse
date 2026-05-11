@@ -7,6 +7,7 @@ from decimal import ROUND_HALF_UP
 from typing import Dict, List, Literal, Optional, Tuple
 
 import numpy as np
+import soxr
 import torch
 
 from lhotse.audio.resampling_backend import get_current_resampling_backend
@@ -99,7 +100,7 @@ class Resample(AudioTransform):
 
     @property
     def resampler(self) -> Optional[torch.nn.Module]:
-        if get_current_resampling_backend() == "sox":
+        if get_current_resampling_backend() in ("sox", "soxr"):
             return None
         return get_or_create_resampler(
             self.source_sampling_rate, self.target_sampling_rate
@@ -108,6 +109,11 @@ class Resample(AudioTransform):
     def __call__(self, samples: np.ndarray, *args, **kwargs) -> np.ndarray:
         if self.source_sampling_rate == self.target_sampling_rate:
             return samples
+
+        if get_current_resampling_backend() == "soxr":
+            return soxr.resample(
+                samples.T, self.source_sampling_rate, self.target_sampling_rate,
+            ).T
 
         if get_current_resampling_backend() == "sox":
             channels, _ = samples.shape
